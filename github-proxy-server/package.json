@@ -1,0 +1,20 @@
+{
+  "name": "github-proxy-server",
+  "version": "1.0.0",
+  "description": "Simple GitHub API proxy server for port 8082",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": ["github", "api", "proxy"],
+  "author": "BOCRA",
+  "license": "MIT"
+}
