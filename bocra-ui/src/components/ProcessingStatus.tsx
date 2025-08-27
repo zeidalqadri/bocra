@@ -1,16 +1,18 @@
 import React from 'react';
-import { Clock, Cpu, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { Clock, Cpu, CheckCircle, AlertCircle, Loader, Download } from 'lucide-react';
 import { cn } from '../utils/cn';
 import type { ProcessingStatus as ProcessingStatusType } from '../types/ocr.types';
 
 interface ProcessingStatusProps {
   status: ProcessingStatusType;
   className?: string;
+  onDownload?: () => void;
 }
 
 export const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
   status,
-  className
+  className,
+  onDownload
 }) => {
   const progressPercentage = Math.round(status.progress);
   const isCompleted = progressPercentage >= 100;
@@ -164,6 +166,34 @@ export const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
                 ETA: {formatTime(status.estimatedTimeRemaining)}
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Download Section - Show when completed */}
+      {isCompleted && onDownload && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-green-900">
+                  Processing Complete!
+                </h4>
+                <p className="text-xs text-green-700 mt-1">
+                  Your document is ready for download in multiple formats
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onDownload}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download Results
+            </button>
           </div>
         </div>
       )}

@@ -4,7 +4,10 @@ import { FileUploader } from '../components/FileUploader';
 import { OCRSettings } from '../components/OCRSettings';
 import { ProcessingStatus } from '../components/ProcessingStatus';
 import { DocumentCard } from '../components/DocumentCard';
-import type { OCRSettings as OCRSettingsType, Document, ProcessingStatus as ProcessingStatusType } from '../types/ocr.types';
+import { DownloadModal } from '../components/DownloadModal';
+import { downloadDocument } from '../utils/download';
+import type { OCRConfig as OCRSettingsType, Document, ProcessingStatus as ProcessingStatusType } from '../types/ocr.types';
+import type { DownloadFormat } from '../components/DownloadModal';
 
 export const Home: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -18,6 +21,8 @@ export const Home: React.FC = () => {
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatusType | null>(null);
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+  const [documentToDownload, setDocumentToDownload] = useState<Document | null>(null);
   
   // Mock data for recent documents
   const [recentDocuments] = useState<Document[]>([
@@ -111,14 +116,52 @@ export const Home: React.FC = () => {
 
   const handleViewDocument = (document: Document) => {
     console.log('View document:', document);
+    // TODO: Implement document viewer
   };
 
   const handleDownloadDocument = (document: Document) => {
-    console.log('Download document:', document);
+    setDocumentToDownload(document);
+    setDownloadModalOpen(true);
   };
 
   const handleDeleteDocument = (document: Document) => {
     console.log('Delete document:', document);
+    // TODO: Implement document deletion
+  };
+
+  const handleDownloadModalClose = () => {
+    setDownloadModalOpen(false);
+    setDocumentToDownload(null);
+  };
+
+  const handleDownloadFormat = async (document: Document, format: DownloadFormat['id']) => {
+    try {
+      await downloadDocument(document, format);
+    } catch (error) {
+      console.error('Download failed:', error);
+      // TODO: Show error notification
+    }
+  };
+
+  const handleProcessingDownload = () => {
+    if (!processingStatus) return;
+    
+    // Create a mock document from processing status
+    const mockDocument: Document = {
+      id: processingStatus.documentId,
+      filename: selectedFiles[0]?.name || 'processed_document.pdf',
+      originalSize: selectedFiles[0]?.size || 0,
+      pages: processingStatus.totalPages,
+      status: 'completed',
+      createdAt: new Date(),
+      completedAt: new Date(),
+      confidence: processingStatus.averageConfidence,
+      language: ocrSettings.language,
+      dpi: ocrSettings.dpi,
+      fastMode: ocrSettings.fastMode
+    };
+    
+    handleDownloadDocument(mockDocument);
   };
 
   return (
@@ -135,8 +178,7 @@ export const Home: React.FC = () => {
             </div>
             
             <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl">
-              High-Fidelity OCR for
-              <span className="text-red-600"> Scanned PDFs</span>
+              <span className="text-red-600">BÖCRA</span>
             </h1>
             
             <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
@@ -195,7 +237,10 @@ export const Home: React.FC = () => {
 
             {/* Processing Status */}
             {processingStatus && (
-              <ProcessingStatus status={processingStatus} />
+              <ProcessingStatus 
+                status={processingStatus} 
+                onDownload={handleProcessingDownload}
+              />
             )}
 
             {/* OCR Settings */}
@@ -288,6 +333,16 @@ export const Home: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Download Modal */}
+      {downloadModalOpen && documentToDownload && (
+        <DownloadModal
+          isOpen={downloadModalOpen}
+          onClose={handleDownloadModalClose}
+          document={documentToDownload}
+          onDownload={handleDownloadFormat}
+        />
+      )}
     </div>
   );
 };

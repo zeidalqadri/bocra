@@ -12,7 +12,7 @@ export interface Document {
   fastMode: boolean;
 }
 
-export interface OCRSettings {
+export interface OCRConfig {
   language: string;
   dpi: number;
   psm: number;

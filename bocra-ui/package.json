@@ -7,19 +7,24 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=bocra-ui",
+    "deploy:staging": "npm run build && wrangler pages deploy dist --project-name=bocra-ui-staging",
+    "pages:dev": "wrangler pages dev dist --port=8080",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@tailwindcss/forms": "^0.5.10",
+    "axios": "^1.5.0",
+    "clsx": "^2.0.0",
+    "lucide-react": "^0.279.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.15.0",
     "react-dropzone": "^14.2.3",
     "react-query": "^3.39.3",
-    "zustand": "^4.4.1",
-    "axios": "^1.5.0",
-    "lucide-react": "^0.279.0",
-    "clsx": "^2.0.0",
-    "tailwind-merge": "^1.14.0"
+    "react-router-dom": "^6.15.0",
+    "tailwind-merge": "^1.14.0",
+    "zustand": "^4.4.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",

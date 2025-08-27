@@ -146,6 +146,27 @@
   background-clip: text;
 }
 
+/* Text overflow and containment utilities */
+.text-contain {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.text-ellipsis-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.text-ellipsis-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* Layout utilities */
 .container-narrow {
   @apply max-w-4xl mx-auto px-4 sm:px-6 lg:px-8;
@@ -153,4 +174,48 @@
 
 .container-wide {
   @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* Element boundaries and containment */
+.bounded-content {
+  @apply w-full min-w-0 overflow-hidden;
+}
+
+.flex-bounded {
+  @apply flex min-w-0 overflow-hidden;
+}
+
+.grid-bounded {
+  @apply grid min-w-0 overflow-hidden;
+}
+
+/* Responsive text sizing */
+.text-responsive-sm {
+  font-size: clamp(0.75rem, 2vw, 0.875rem);
+}
+
+.text-responsive-base {
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
+}
+
+.text-responsive-lg {
+  font-size: clamp(1rem, 3vw, 1.125rem);
+}
+
+/* Modal and overlay utilities */
+.modal-backdrop {
+  @apply fixed inset-0 bg-black bg-opacity-50 transition-opacity z-40;
+}
+
+.modal-content {
+  @apply relative bg-white rounded-lg shadow-xl transform transition-all z-50;
+}
+
+/* Download button enhancements */
+.download-button {
+  @apply inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200;
+}
+
+.download-button:disabled {
+  @apply opacity-50 cursor-not-allowed;
 }

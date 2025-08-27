@@ -8,7 +8,6 @@ interface FileUploaderProps {
   onFilesSelected: (files: File[]) => void;
   maxFiles?: number;
   maxSize?: number;
-  accept?: string;
   disabled?: boolean;
   className?: string;
 }
@@ -17,7 +16,6 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
   onFilesSelected,
   maxFiles = 10,
   maxSize = 50 * 1024 * 1024, // 50MB
-  accept = '.pdf',
   disabled = false,
   className
 }) => {

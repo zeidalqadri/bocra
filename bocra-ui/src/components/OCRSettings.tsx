@@ -1,11 +1,11 @@
 import React from 'react';
 import { Settings, Zap, Languages, Monitor } from 'lucide-react';
 import { cn } from '../utils/cn';
-import type { OCRSettings } from '../types/ocr.types';
+import type { OCRConfig } from '../types/ocr.types';
 
 interface OCRSettingsProps {
-  settings: OCRSettings;
-  onSettingsChange: (settings: OCRSettings) => void;
+  settings: OCRConfig;
+  onSettingsChange: (settings: OCRConfig) => void;
   disabled?: boolean;
   className?: string;
 }
@@ -36,15 +36,15 @@ const psmOptions = [
   { value: 13, label: 'Raw line (no formatting)' }
 ];
 
-export const OCRSettings: React.FC<OCRSettingsProps> = ({
+export const OCRSettingsComponent: React.FC<OCRSettingsProps> = ({
   settings,
   onSettingsChange,
   disabled = false,
   className
 }) => {
-  const updateSetting = <K extends keyof OCRSettings>(
+  const updateSetting = <K extends keyof OCRConfig>(
     key: K,
-    value: OCRSettings[K]
+    value: OCRConfig[K]
   ) => {
     onSettingsChange({
       ...settings,
@@ -191,3 +191,5 @@ export const OCRSettings: React.FC<OCRSettingsProps> = ({
     </div>
   );
 };
+
+export const OCRSettings = OCRSettingsComponent;

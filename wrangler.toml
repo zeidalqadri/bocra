@@ -1,0 +1,22 @@
+name = "bocra-ui"
+compatibility_date = "2024-01-01"
+
+[env.production]
+name = "bocra-ui"
+
+[env.staging]
+name = "bocra-ui-staging"
+
+[[env.production.pages_build_output_dir]]
+name = "bocra-ui/dist"
+
+[[env.staging.pages_build_output_dir]]
+name = "bocra-ui/dist"
+
+# Build configuration
+[build]
+command = "cd bocra-ui && npm ci && npm run build"
+cwd = ""
+
+[build.upload]
+format = "modules"

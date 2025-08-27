@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Download, Eye, Trash2, Calendar, Users, Award } from 'lucide-react';
+import { FileText, Download, Eye, Trash2, Calendar, Award } from 'lucide-react';
 import { cn } from '../utils/cn';
 import type { Document } from '../types/ocr.types';
 
@@ -63,7 +63,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
               <FileText className="w-8 h-8 text-red-500" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium text-gray-900 truncate">
+              <h3 className="text-sm font-medium text-gray-900 truncate" title={document.filename}>
                 {document.filename}
               </h3>
               <p className="text-xs text-gray-500 mt-1">
@@ -163,24 +163,24 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
       'bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow duration-200',
       className
     )}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4 flex-1">
+      <div className="flex items-center justify-between min-w-0">
+        <div className="flex items-center space-x-4 flex-1 min-w-0 overflow-hidden">
           <FileText className="w-8 h-8 text-red-500 flex-shrink-0" />
           
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-medium text-gray-900 truncate">
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <h3 className="text-sm font-medium text-gray-900 truncate" title={document.filename}>
               {document.filename}
             </h3>
-            <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
-              <span>{document.pages} pages</span>
+            <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-gray-500">
+              <span className="whitespace-nowrap">{document.pages} pages</span>
               <span>•</span>
-              <span>{formatFileSize(document.originalSize)}</span>
+              <span className="whitespace-nowrap">{formatFileSize(document.originalSize)}</span>
               <span>•</span>
-              <span>{new Date(document.createdAt).toLocaleDateString()}</span>
+              <span className="whitespace-nowrap">{new Date(document.createdAt).toLocaleDateString()}</span>
               {document.confidence && (
                 <>
                   <span>•</span>
-                  <span className={getConfidenceColor(document.confidence)}>
+                  <span className={cn("whitespace-nowrap", getConfidenceColor(document.confidence))}>
                     {document.confidence.toFixed(1)}% confidence
                   </span>
                 </>
@@ -188,16 +188,16 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
             </div>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-shrink-0">
             <span className={cn(
-              'px-2 py-1 text-xs font-medium rounded-full',
+              'px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap',
               getStatusColor(document.status)
             )}>
               {document.status}
             </span>
             
             {document.fastMode && (
-              <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+              <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 whitespace-nowrap">
                 Fast Mode
               </span>
             )}
@@ -206,7 +206,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
 
         {/* Actions */}
         {document.status === 'completed' && (
-          <div className="flex items-center space-x-2 ml-4">
+          <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
             {onView && (
               <button
                 onClick={() => onView(document)}
