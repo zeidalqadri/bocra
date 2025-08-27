@@ -1,0 +1,140 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: bocra-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bocra
+      POSTGRES_USER: bocra
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bocra123}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bocra -d bocra"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bocra-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: bocra-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - bocra-network
+
+  # BOCRA API Application
+  api:
+    build: .
+    container_name: bocra-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://bocra:${POSTGRES_PASSWORD:-bocra123}@postgres:5432/bocra
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379
+      BOCRA_SECRET_KEY: ${BOCRA_SECRET_KEY:-your-secret-key-change-this}
+      BOCRA_STORAGE_KEY: ${BOCRA_STORAGE_KEY:-your-storage-key-change-this}
+      BOCRA_IP_SALT: ${BOCRA_IP_SALT:-your-ip-salt-change-this}
+      STORAGE_PATH: /var/lib/bocra/storage
+      FRONTEND_URLS: ${FRONTEND_URLS:-http://localhost:3000,https://*.pages.dev}
+      SESSION_DURATION_HOURS: ${SESSION_DURATION_HOURS:-24}
+      MAX_DOCUMENTS_PER_IP: ${MAX_DOCUMENTS_PER_IP:-1000}
+      MAX_STORAGE_BYTES_PER_IP: ${MAX_STORAGE_BYTES_PER_IP:-10737418240}
+      MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-104857600}
+    volumes:
+      - bocra_storage:/var/lib/bocra/storage
+      - bocra_logs:/var/log/bocra
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - bocra-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: bocra-nginx
+    restart: unless-stopped
+    depends_on:
+      - api
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx_logs:/var/log/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - bocra-network
+
+  # Background Jobs (Optional)
+  worker:
+    build: .
+    container_name: bocra-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://bocra:${POSTGRES_PASSWORD:-bocra123}@postgres:5432/bocra
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379
+      BOCRA_SECRET_KEY: ${BOCRA_SECRET_KEY:-your-secret-key-change-this}
+      BOCRA_STORAGE_KEY: ${BOCRA_STORAGE_KEY:-your-storage-key-change-this}
+      BOCRA_IP_SALT: ${BOCRA_IP_SALT:-your-ip-salt-change-this}
+      STORAGE_PATH: /var/lib/bocra/storage
+    volumes:
+      - bocra_storage:/var/lib/bocra/storage
+      - bocra_logs:/var/log/bocra
+    command: ["python", "-m", "backend.monitoring_jobs"]
+    networks:
+      - bocra-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  bocra_storage:
+    driver: local
+  bocra_logs:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  bocra-network:
+    driver: bridge
