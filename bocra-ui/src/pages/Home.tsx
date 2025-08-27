@@ -272,7 +272,7 @@ export const Home: React.FC = () => {
       </div>
 
       {/* Session Status Bar */}
-      {sessionError && (
+      {sessionError && sessionError.code !== 'DEMO_MODE' && (
         <div className="bg-red-50 border-b border-red-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             <div className="flex items-center">
@@ -283,6 +283,28 @@ export const Home: React.FC = () => {
               <button
                 onClick={clearError}
                 className="text-red-600 hover:text-red-800 text-sm font-medium"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Demo Mode Banner */}
+      {sessionError && sessionError.code === 'DEMO_MODE' && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 text-amber-600 mr-3" />
+              <div className="flex-1">
+                <p className="text-sm text-amber-800">
+                  <strong>Demo Mode:</strong> Backend not available - showing mock data and functionality
+                </p>
+              </div>
+              <button
+                onClick={clearError}
+                className="text-amber-600 hover:text-amber-800 text-sm font-medium"
               >
                 Dismiss
               </button>
