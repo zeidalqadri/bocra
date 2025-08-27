@@ -1,15 +1,21 @@
-import React, { useState } from 'react';
-import { Zap, FileText, Download, Award, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Zap, FileText, Download, Award, ArrowRight, User, Shield, AlertCircle } from 'lucide-react';
 import { FileUploader } from '../components/FileUploader';
 import { OCRSettings } from '../components/OCRSettings';
 import { ProcessingStatus } from '../components/ProcessingStatus';
 import { DocumentCard } from '../components/DocumentCard';
 import { DownloadModal } from '../components/DownloadModal';
 import { downloadDocument } from '../utils/download';
+import { useSession } from '../hooks/useSession';
+import apiClient from '../utils/api';
 import type { OCRConfig as OCRSettingsType, Document, ProcessingStatus as ProcessingStatusType } from '../types/ocr.types';
 import type { DownloadFormat } from '../components/DownloadModal';
 
 export const Home: React.FC = () => {
+  // Session management
+  const { sessionInfo, userInfo, isLoading: sessionLoading, isAuthenticated, error: sessionError, refreshUserInfo, clearError } = useSession();
+  
+  // UI state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [ocrSettings, setOcrSettings] = useState<OCRSettingsType>({
     language: 'eng',
@@ -23,95 +29,128 @@ export const Home: React.FC = () => {
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatusType | null>(null);
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [documentToDownload, setDocumentToDownload] = useState<Document | null>(null);
+  const [recentDocuments, setRecentDocuments] = useState<Document[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
   
-  // Mock data for recent documents
-  const [recentDocuments] = useState<Document[]>([
-    {
-      id: '1',
-      filename: 'basketball_coaching_manual_level1.pdf',
-      originalSize: 5242880,
-      pages: 101,
-      status: 'completed',
-      createdAt: new Date('2024-01-20'),
-      completedAt: new Date('2024-01-20'),
-      confidence: 95.2,
-      language: 'eng',
-      dpi: 300,
-      fastMode: true
-    },
-    {
-      id: '2', 
-      filename: 'research_paper_draft.pdf',
-      originalSize: 2097152,
-      pages: 24,
-      status: 'completed',
-      createdAt: new Date('2024-01-19'),
-      completedAt: new Date('2024-01-19'),
-      confidence: 87.3,
-      language: 'eng',
-      dpi: 400,
-      fastMode: false
-    },
-    {
-      id: '3',
-      filename: 'scanned_invoice_batch.pdf',
-      originalSize: 1048576,
-      pages: 5,
-      status: 'processing',
-      createdAt: new Date('2024-01-21'),
-      language: 'eng',
-      dpi: 300,
-      fastMode: true
+  // Load user settings when available
+  useEffect(() => {
+    if (userInfo?.settings) {
+      setOcrSettings({
+        language: userInfo.settings.language,
+        dpi: userInfo.settings.dpi,
+        psm: userInfo.settings.psm,
+        fastMode: userInfo.settings.fastMode,
+        skipTables: userInfo.settings.skipTables
+      });
     }
-  ]);
+  }, [userInfo]);
+  
+  // Load recent documents when authenticated
+  useEffect(() => {
+    if (isAuthenticated && !documentsLoading) {
+      loadRecentDocuments();
+    }
+  }, [isAuthenticated]);
+  
+  const loadRecentDocuments = async () => {
+    if (!isAuthenticated) return;
+    
+    setDocumentsLoading(true);
+    try {
+      const response = await apiClient.listDocuments(0, 5); // Get 5 most recent
+      setRecentDocuments(response.documents.map(doc => ({
+        id: doc.id,
+        filename: doc.filename,
+        originalSize: doc.originalSize,
+        pages: doc.pages,
+        status: doc.status as any,
+        createdAt: new Date(doc.createdAt),
+        completedAt: doc.completedAt ? new Date(doc.completedAt) : undefined,
+        confidence: doc.confidence,
+        language: 'eng', // Default as backend doesn't return this yet
+        dpi: 400, // Default as backend doesn't return this yet
+        fastMode: false // Default as backend doesn't return this yet
+      })));
+    } catch (error) {
+      console.error('Failed to load recent documents:', error);
+      // Fall back to mock data for now
+      setRecentDocuments([
+        {
+          id: '1',
+          filename: 'basketball_coaching_manual_level1.pdf',
+          originalSize: 5242880,
+          pages: 101,
+          status: 'completed',
+          createdAt: new Date('2024-01-20'),
+          completedAt: new Date('2024-01-20'),
+          confidence: 95.2,
+          language: 'eng',
+          dpi: 300,
+          fastMode: true
+        }
+      ]);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
 
   const handleFilesSelected = (files: File[]) => {
     setSelectedFiles(files);
   };
 
-  const handleStartProcessing = () => {
-    if (selectedFiles.length === 0) return;
+  const handleStartProcessing = async () => {
+    if (selectedFiles.length === 0 || !isAuthenticated) return;
     
     setIsProcessing(true);
-    // Mock processing status
-    setProcessingStatus({
-      documentId: 'doc-' + Date.now(),
-      currentPage: 1,
-      totalPages: 101,
-      progress: 0,
-      estimatedTimeRemaining: 120,
-      averageConfidence: 0
-    });
-
-    // Simulate processing progress
-    const interval = setInterval(() => {
-      setProcessingStatus(prev => {
-        if (!prev) return null;
+    
+    try {
+      // Upload the first file (for now)
+      const file = selectedFiles[0];
+      const uploadResult = await apiClient.uploadDocument(file, ocrSettings);
+      
+      console.log('Upload successful:', uploadResult);
+      
+      // Start polling for processing status
+      pollProcessingStatus(uploadResult.documentId);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setIsProcessing(false);
+      // TODO: Show error notification
+      return;
+    }
+  };
+  
+  const pollProcessingStatus = async (documentId: string) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await apiClient.getDocumentStatus(documentId);
         
-        const newProgress = Math.min(prev.progress + 2, 100);
-        const newPage = Math.floor((newProgress / 100) * prev.totalPages);
+        setProcessingStatus({
+          documentId: status.documentId,
+          currentPage: status.currentPage,
+          totalPages: status.totalPages,
+          progress: status.progress,
+          estimatedTimeRemaining: status.estimatedTimeRemaining,
+          averageConfidence: status.confidence
+        });
         
-        if (newProgress >= 100) {
-          clearInterval(interval);
+        // Stop polling when complete
+        if (status.status === 'completed' || status.status === 'error') {
+          clearInterval(pollInterval);
           setIsProcessing(false);
-          return {
-            ...prev,
-            currentPage: prev.totalPages,
-            progress: 100,
-            estimatedTimeRemaining: 0,
-            averageConfidence: 94.8
-          };
+          
+          if (status.status === 'completed') {
+            // Refresh document list
+            await loadRecentDocuments();
+            await refreshUserInfo(); // Update storage stats
+          }
         }
-        
-        return {
-          ...prev,
-          currentPage: newPage,
-          progress: newProgress,
-          estimatedTimeRemaining: Math.round((100 - newProgress) * 1.2),
-          averageConfidence: 85 + (newProgress / 100) * 10
-        };
-      });
-    }, 500);
+      } catch (error) {
+        console.error('Failed to poll processing status:', error);
+        clearInterval(pollInterval);
+        setIsProcessing(false);
+      }
+    }, 2000); // Poll every 2 seconds
   };
 
   const handleViewDocument = (document: Document) => {
@@ -124,9 +163,18 @@ export const Home: React.FC = () => {
     setDownloadModalOpen(true);
   };
 
-  const handleDeleteDocument = (document: Document) => {
-    console.log('Delete document:', document);
-    // TODO: Implement document deletion
+  const handleDeleteDocument = async (document: Document) => {
+    if (!isAuthenticated) return;
+    
+    try {
+      await apiClient.deleteDocument(document.id);
+      // Refresh document list
+      await loadRecentDocuments();
+      await refreshUserInfo(); // Update storage stats
+    } catch (error) {
+      console.error('Delete failed:', error);
+      // TODO: Show error notification
+    }
   };
 
   const handleDownloadModalClose = () => {
@@ -135,11 +183,30 @@ export const Home: React.FC = () => {
   };
 
   const handleDownloadFormat = async (document: Document, format: DownloadFormat['id']) => {
+    if (!isAuthenticated) return;
+    
     try {
-      await downloadDocument(document, format);
+      // Try to download from API first
+      const blob = await apiClient.downloadDocument(document.id, format);
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      
+      const extension = format === 'txt' ? '.txt' : format === 'json' ? '.json' : format === 'csv' ? '.csv' : '.pdf';
+      link.download = `${document.filename.replace(/\.[^/.]+$/, '')}_ocr${extension}`;
+      
+      link.style.display = 'none';
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
     } catch (error) {
-      console.error('Download failed:', error);
-      // TODO: Show error notification
+      console.error('API download failed, falling back to mock:', error);
+      // Fall back to mock download
+      await downloadDocument(document, format);
     }
   };
 
@@ -204,6 +271,50 @@ export const Home: React.FC = () => {
         </div>
       </div>
 
+      {/* Session Status Bar */}
+      {sessionError && (
+        <div className="bg-red-50 border-b border-red-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
+              <div className="flex-1">
+                <p className="text-sm text-red-800">{sessionError.message}</p>
+              </div>
+              <button
+                onClick={clearError}
+                className="text-red-600 hover:text-red-800 text-sm font-medium"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Info Bar */}
+      {isAuthenticated && userInfo && (
+        <div className="bg-blue-50 border-b border-blue-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center">
+                  <Shield className="w-4 h-4 text-blue-600 mr-2" />
+                  <span className="text-sm text-blue-800">
+                    Secure Session Active
+                  </span>
+                </div>
+                <div className="text-sm text-blue-700">
+                  {userInfo.documentCount} documents • {(userInfo.storageUsedBytes / 1024 / 1024).toFixed(1)} MB used
+                </div>
+              </div>
+              <div className="text-sm text-blue-700">
+                {userInfo.quotaUsedPercent.toFixed(1)}% of quota used
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -218,10 +329,21 @@ export const Home: React.FC = () => {
                 <FileUploader
                   onFilesSelected={handleFilesSelected}
                   maxFiles={10}
-                  disabled={isProcessing}
+                  disabled={isProcessing || !isAuthenticated}
                 />
                 
-                {selectedFiles.length > 0 && !isProcessing && (
+                {!isAuthenticated && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-md">
+                    <div className="flex items-center">
+                      <User className="w-5 h-5 text-gray-400 mr-2" />
+                      <p className="text-sm text-gray-600">
+                        {sessionLoading ? 'Initializing secure session...' : 'Secure session required for uploads'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedFiles.length > 0 && !isProcessing && isAuthenticated && (
                   <div className="mt-6 flex justify-end">
                     <button
                       onClick={handleStartProcessing}
@@ -247,7 +369,7 @@ export const Home: React.FC = () => {
             <OCRSettings
               settings={ocrSettings}
               onSettingsChange={setOcrSettings}
-              disabled={isProcessing}
+              disabled={isProcessing || !isAuthenticated}
             />
           </div>
 
@@ -260,16 +382,33 @@ export const Home: React.FC = () => {
                 </h2>
                 
                 <div className="space-y-4">
-                  {recentDocuments.map((document) => (
-                    <DocumentCard
-                      key={document.id}
-                      document={document}
-                      variant="list"
-                      onView={handleViewDocument}
-                      onDownload={handleDownloadDocument}
-                      onDelete={handleDeleteDocument}
-                    />
-                  ))}
+                  {documentsLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
+                      <p className="text-sm text-gray-500 mt-2">Loading documents...</p>
+                    </div>
+                  ) : recentDocuments.length > 0 ? (
+                    recentDocuments.map((document) => (
+                      <DocumentCard
+                        key={document.id}
+                        document={document}
+                        variant="list"
+                        onView={handleViewDocument}
+                        onDownload={handleDownloadDocument}
+                        onDelete={handleDeleteDocument}
+                      />
+                    ))
+                  ) : isAuthenticated ? (
+                    <div className="text-center py-8">
+                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-sm text-gray-500">No documents yet. Upload your first PDF to get started!</p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-sm text-gray-500">Please wait while we initialize your secure session...</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-6 text-center">
