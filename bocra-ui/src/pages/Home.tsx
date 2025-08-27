@@ -13,7 +13,7 @@ import type { DownloadFormat } from '../components/DownloadModal';
 
 export const Home: React.FC = () => {
   // Session management
-  const { sessionInfo, userInfo, isLoading: sessionLoading, isAuthenticated, error: sessionError, refreshUserInfo, clearError } = useSession();
+  const { userInfo, isLoading: sessionLoading, isAuthenticated, error: sessionError, refreshUserInfo, clearError } = useSession();
   
   // UI state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);

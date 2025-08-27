@@ -194,11 +194,11 @@ class ApiClient {
   private generateClientFingerprint(): string {
     // Generate a simple client fingerprint for additional security
     const userAgent = navigator.userAgent;
-    const screen = `${screen.width}x${screen.height}`;
+    const screenInfo = `${window.screen.width}x${window.screen.height}`;
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const language = navigator.language;
     
-    const fingerprint = `${userAgent}-${screen}-${timezone}-${language}`;
+    const fingerprint = `${userAgent}-${screenInfo}-${timezone}-${language}`;
     return btoa(fingerprint).substr(0, 16);
   }
 
