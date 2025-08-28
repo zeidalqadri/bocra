@@ -17,6 +17,7 @@ export const Home: React.FC = () => {
   
   // UI state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<Array<{ filename: string; progress: number; status: 'ready' | 'uploading' | 'completed' | 'error' }>>([]);
   const [ocrSettings, setOcrSettings] = useState<OCRSettingsType>({
     language: 'eng',
     dpi: 400,
@@ -96,6 +97,18 @@ export const Home: React.FC = () => {
 
   const handleFilesSelected = (files: File[]) => {
     setSelectedFiles(files);
+    // Initialize upload progress
+    const newProgress = files.map(file => ({
+      filename: file.name,
+      progress: 0,
+      status: 'ready' as const
+    }));
+    setUploadProgress(newProgress);
+  };
+
+  const handleFileRemove = (filename: string) => {
+    setSelectedFiles(prev => prev.filter(f => f.name !== filename));
+    setUploadProgress(prev => prev.filter(p => p.filename !== filename));
   };
 
   const handleStartProcessing = async () => {
@@ -106,14 +119,45 @@ export const Home: React.FC = () => {
     try {
       // Upload the first file (for now)
       const file = selectedFiles[0];
+      
+      // Update status to uploading
+      setUploadProgress(prev => 
+        prev.map(p => 
+          p.filename === file.name 
+            ? { ...p, status: 'uploading' as const }
+            : p
+        )
+      );
+      
       const uploadResult = await apiClient.uploadDocument(file, ocrSettings);
       
       console.log('Upload successful:', uploadResult);
+      
+      // Update status to completed
+      setUploadProgress(prev => 
+        prev.map(p => 
+          p.filename === file.name 
+            ? { ...p, status: 'completed' as const, progress: 100 }
+            : p
+        )
+      );
       
       // Start polling for processing status
       pollProcessingStatus(uploadResult.documentId);
     } catch (error) {
       console.error('Upload failed:', error);
+      
+      // Update status to error
+      if (selectedFiles.length > 0) {
+        setUploadProgress(prev => 
+          prev.map(p => 
+            p.filename === selectedFiles[0].name 
+              ? { ...p, status: 'error' as const }
+              : p
+          )
+        );
+      }
+      
       setIsProcessing(false);
       // TODO: Show error notification
       return;
@@ -272,7 +316,7 @@ export const Home: React.FC = () => {
       </div>
 
       {/* Session Status Bar */}
-      {sessionError && sessionError.code !== 'DEMO_MODE' && (
+      {sessionError && (
         <div className="bg-red-50 border-b border-red-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             <div className="flex items-center">
@@ -291,27 +335,6 @@ export const Home: React.FC = () => {
         </div>
       )}
 
-      {/* Demo Mode Banner */}
-      {sessionError && sessionError.code === 'DEMO_MODE' && (
-        <div className="bg-amber-50 border-b border-amber-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <div className="flex items-center">
-              <AlertCircle className="w-5 h-5 text-amber-600 mr-3" />
-              <div className="flex-1">
-                <p className="text-sm text-amber-800">
-                  <strong>Demo Mode:</strong> Backend not available - showing mock data and functionality
-                </p>
-              </div>
-              <button
-                onClick={clearError}
-                className="text-amber-600 hover:text-amber-800 text-sm font-medium"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* User Info Bar */}
       {isAuthenticated && userInfo && (
@@ -352,6 +375,8 @@ export const Home: React.FC = () => {
                   onFilesSelected={handleFilesSelected}
                   maxFiles={10}
                   disabled={isProcessing || !isAuthenticated}
+                  externalProgress={uploadProgress}
+                  onFileRemove={handleFileRemove}
                 />
                 
                 {!isAuthenticated && (

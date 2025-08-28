@@ -10,6 +10,8 @@ interface FileUploaderProps {
   maxSize?: number;
   disabled?: boolean;
   className?: string;
+  externalProgress?: UploadProgress[];
+  onFileRemove?: (filename: string) => void;
 }
 
 export const FileUploader: React.FC<FileUploaderProps> = ({
@@ -17,22 +19,31 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
   maxFiles = 10,
   maxSize = 50 * 1024 * 1024, // 50MB
   disabled = false,
-  className
+  className,
+  externalProgress,
+  onFileRemove
 }) => {
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
+  const [internalProgress, setInternalProgress] = useState<UploadProgress[]>([]);
+  
+  // Use external progress if provided, otherwise use internal
+  const uploadProgress = externalProgress || internalProgress;
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (disabled) return;
     
-    const newProgress = acceptedFiles.map(file => ({
-      filename: file.name,
-      progress: 0,
-      status: 'uploading' as const
-    }));
+    // Only set internal progress if external progress is not provided
+    if (!externalProgress) {
+      const newProgress = acceptedFiles.map(file => ({
+        filename: file.name,
+        progress: 0,
+        status: 'ready' as const
+      }));
+      
+      setInternalProgress(newProgress);
+    }
     
-    setUploadProgress(newProgress);
     onFilesSelected(acceptedFiles);
-  }, [onFilesSelected, disabled]);
+  }, [onFilesSelected, disabled, externalProgress]);
 
   const {
     getRootProps,
@@ -51,7 +62,11 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
   });
 
   const removeFile = (filename: string) => {
-    setUploadProgress(prev => prev.filter(p => p.filename !== filename));
+    if (onFileRemove) {
+      onFileRemove(filename);
+    } else if (!externalProgress) {
+      setInternalProgress(prev => prev.filter(p => p.filename !== filename));
+    }
   };
 
   return (
@@ -135,6 +150,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
                     'px-2 py-1 text-xs rounded-full',
                     progress.status === 'completed' && 'bg-green-100 text-green-800',
                     progress.status === 'uploading' && 'bg-blue-100 text-blue-800',
+                    progress.status === 'ready' && 'bg-gray-100 text-gray-800',
                     progress.status === 'error' && 'bg-red-100 text-red-800'
                   )}>
                     {progress.status}

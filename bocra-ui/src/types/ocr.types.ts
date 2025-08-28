@@ -50,5 +50,5 @@ export interface OCRResult {
 export interface UploadProgress {
   filename: string;
   progress: number;
-  status: 'uploading' | 'completed' | 'error';
+  status: 'ready' | 'uploading' | 'completed' | 'error';
 }
