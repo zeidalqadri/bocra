@@ -72,42 +72,13 @@ export const useSession = (): UseSessionResult => {
       }
     } catch (err) {
       const apiError = err as ApiError;
-      console.warn('Backend not available, using demo mode:', apiError.message);
+      console.error('Backend connection failed:', apiError.message);
       
-      // Create mock session for demo purposes
-      const mockSession: SessionInfo = {
-        sessionToken: 'demo_session_' + Date.now(),
-        ipHash: 'demo_ip_hash_' + Math.random().toString(36).substr(2, 8),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        isActive: true,
-      };
-      
-      const mockUserInfo: UserInfo = {
-        ipHash: mockSession.ipHash,
-        documentCount: 3,
-        storageUsedBytes: 8388608, // 8MB
-        quotaLimitBytes: 1073741824, // 1GB
-        quotaUsedPercent: 0.8,
-        activeSessionsCount: 1,
-        firstSeen: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        lastSeen: new Date().toISOString(),
-        settings: {
-          language: 'eng',
-          dpi: 400,
-          psm: 1,
-          fastMode: false,
-          skipTables: false,
-        },
-      };
-      
-      setSessionInfo(mockSession);
-      setUserInfo(mockUserInfo);
-      
-      // Set a soft error to indicate demo mode
+      // Set error without falling back to demo mode
       setError({
-        message: 'Backend unavailable - running in demo mode',
-        status: 0,
-        code: 'DEMO_MODE',
+        message: `Backend connection failed: ${apiError.message}`,
+        status: apiError.status,
+        code: apiError.code || 'CONNECTION_ERROR',
       });
     } finally {
       setIsLoading(false);

@@ -49,7 +49,7 @@ class ApiClient {
   private sessionToken: string | null = null;
   private rateLimitInfo: RateLimitInfo | null = null;
 
-  constructor(baseURL: string = process.env.REACT_APP_API_URL || 'http://45.159.230.42:8000/api') {
+  constructor(baseURL: string = process.env.REACT_APP_API_URL || 'https://bocra-api.zeidgeist.com/api') {
     // Initialize axios client
     this.client = axios.create({
       baseURL,
